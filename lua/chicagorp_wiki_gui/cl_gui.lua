@@ -6,6 +6,7 @@ local reddebug = Color(200, 10, 10, 150)
 local whitecolor = Color(255, 255, 255, 255)
 local blackcolor = Color(0, 0, 0, 255)
 local blurMat = Material("pp/blurscreen")
+local contenttable = {}
 
 local function isempty(s)
     return s == nil or s == ''
@@ -30,6 +31,235 @@ local function BlurBackground(panel)
     surface.SetDrawColor(0, 0, 0, Dark * Dynamic)
     surface.DrawRect(0, 0, panel:GetWide(), panel:GetTall())
     Dynamic = math.Clamp(Dynamic + (1 / FrameRate) * 7, 0, 1)
+end
+
+local function SmoothScrollBar(vbar) -- why
+    vbar.nInit = vbar.Init
+    function vbar:Init()
+        self:nInit()
+        self.DeltaBuffer = 0
+    end
+
+    vbar.nSetUp = vbar.SetUp
+    function vbar:SetUp(_barsize_, _canvassize_)
+        self:nSetUp(_barsize_, _canvassize_)
+        self.BarSize = _barsize_
+        self.CanvasSize = _canvassize_ - _barsize_
+        if (1 > self.CanvasSize) then self.CanvasSize = 1 end
+    end
+
+    vbar.nAddScroll = vbar.AddScroll
+    function vbar:AddScroll(dlta)
+        self:nAddScroll(dlta)
+
+        self.DeltaBuffer = OldScroll + (dlta * (self:GetSmoothScroll() && 75 || 50))
+        if (self.DeltaBuffer < -self.BarSize) then self.DeltaBuffer = -self.BarSize end
+        if (self.DeltaBuffer > (self.CanvasSize + self.BarSize)) then self.DeltaBuffer = self.CanvasSize + self.BarSize end
+    end
+
+    vbar.nSetScroll = vbar.SetScroll
+    function vbar:SetScroll(scrll)
+        self:nSetScroll(scrll)
+
+        if (scrll > self.CanvasSize) then scrll = self.CanvasSize end
+        if (0 > scrll ) then scrll = 0 end
+        self.Scroll = scrll
+    end
+
+    function vbar:AnimateTo(scrll, length, delay, ease)
+        self.DeltaBuffer = scrll
+    end
+
+    function vbar:GetDeltaBuffer()
+        if (self.Dragging) then self.DeltaBuffer = self:GetScroll() end
+        if (!self.Enabled) then self.DeltaBuffer = 0 end
+        return self.DeltaBuffer
+    end
+
+    vbar.nThink = vbar.Think
+    function vbar:Think()
+        self:nThink()
+        if (!self.Enabled) then return end
+
+        local FrameRate = (self.CanvasSize / 10) > math.abs(self:GetDeltaBuffer() - self:GetScroll()) && 2 || 5
+        self:SetScroll(Lerp(FrameTime() * (self:GetSmoothScroll() && FrameRate || 10), self:GetScroll(), self:GetDeltaBuffer()))
+
+        if (self.CanvasSize > self.DeltaBuffer && self.Scroll == self.CanvasSize) then self.DeltaBuffer = self.CanvasSize end
+        if (0 > self.DeltaBuffer && self.Scroll == 0) then self.DeltaBuffer = 0 end
+    end
+end
+
+local function ContentButton(parent, index, text, w, h)
+    local contentButton = parent:Add("DButton")
+    contentButton:Dock(TOP)
+    contentButton:DockMargin(0, 0, 10, 0)
+    contentButton:SetSize(w, h)
+    contentButton:SetText(text)
+
+    contentButton:SizeToContents()
+
+    contentindex.Index = index
+
+    function contentButton:Paint(w, h)
+        draw.DrawText(index .. ": " .. text, "chicagoRP_NPCShop", 0, 0, Color(20, 200, 20, 255), TEXT_ALIGN_LEFT)
+
+        return nil
+    end
+
+    return contentButton
+
+local function ContentsPanel(parent, x, y, w, h)
+    local contentsScrPanel = vgui.Create("DScrollPanel", parent)
+    contentsScrPanel:SetPos(x, y)
+    contentsScrPanel:SetSize(w, h)
+
+    function contentsScrPanel:Paint(w, h)
+        return nil
+    end
+
+    local contentsScrollBar = contentsScrPanel:GetVBar()
+    contentsScrollBar:SetHideButtons(true)
+    function contentsScrollBar:Paint(w, h)
+        if contentsScrollBar.btnGrip:IsHovered() then
+            draw.RoundedBox(2, 0, 0, w, h, Color(42, 40, 35, 66))
+        end
+    end
+    function contentsScrollBar.btnGrip:Paint(w, h)
+        if self:IsHovered() then
+            draw.RoundedBox(8, 0, 0, w, h, Color(76, 76, 74, 100))
+        end
+    end
+
+    SmoothScrollBar(contentsScrollBar)
+
+    return contentsScrPanel
+end
+
+local function WikiTextPanel(parent, sectionname, contents, x, y, w, h)
+    local wikiTxtPanel = vgui.Create("DLabel", parent)
+    wikiTxtPanel:SetPos(x, y)
+    wikiTxtPanel:SetSize(w, h)
+    -- wikiTxtPanel:Dock(TOP)
+    -- wikiTxtPanel:DockMargin(0, 0, 5, 5)
+
+    wikiTxtPanel.Think = nil
+
+    function wikiTxtPanel:SetSize(w, h):Paint(w, h)
+        draw.DrawText(sectionname, "chicagoRP_NPCShop", 0, 0, blackcolor, TEXT_ALIGN_LEFT)
+        draw.RoundedBox(2, 0, 10, 100, 4, blackColor)
+        draw.DrawText(contents, "chicagoRP_NPCShop", 20, 0, blackcolor, TEXT_ALIGN_LEFT)
+
+        return nil
+    end
+
+    wikiTxtPanel:SetWrap(true)
+    wikiTxtPanel:SetAutoStretchVertical(true)
+
+    return wikiTxtPanel
+end
+
+local function OptimizedSpawnIcon(parent, model, x, y, w, h)
+    local SpawnIc = vgui.Create("ModelImage", parent) -- or DPanel
+    SpawnIc:SetPos(x, y)
+    SpawnIc:SetSize(w, h)
+    SpawnIc:SetModel(model) -- Model we want for this spawn icon
+
+    -- local iconmat = 
+
+    -- function SpawnIc:Paint(w, h)
+    --     surface.SetMaterial(IMaterial material)
+    --     surface.DrawTexturedRectRotated(0, 0, w, h, 0)
+
+    --     return nil
+    -- end
+
+    return SpawnIc
+end
+
+local function InfoTextPanel(parent, text, color, w, h)
+    local textScrPanel = vgui.Create("DPanel", parent)
+    itemScrPanel:SetSize(w, h)
+    itemScrPanel:Dock(TOP)
+    itemScrPanel:DockMargin(0, 0, 5, 5)
+
+    local colortrue = IsColor(color)
+
+    if colortrue then color.a = 50 end
+
+    function itemScrPanel:Paint(w, h)
+        draw.DrawText(text, "chicagoRP_NPCShop", 0, 0, whitecolor, TEXT_ALIGN_LEFT)
+
+        if colortrue then
+            surface.SetDrawColor(color)
+            surface.DrawRect(0, 0, w, h)
+
+            return true
+        else
+            return nil
+        end
+    end
+
+    return itemScrPanel
+end
+
+local function InfoParentPanel(parent, itemtbl, x, y, w, h)
+    local parentScrPanel = vgui.Create("DScrollPanel", parent)
+    parentScrPanel:SetPos(x, y)
+    parentScrPanel:SetSize(w, h)
+
+    function parentScrPanel:Paint(w, h)
+        return nil
+    end
+
+    local parentScrollBar = parentScrPanel:GetVBar()
+    parentScrollBar:SetHideButtons(true)
+    function parentScrollBar:Paint(w, h)
+        if parentScrollBar.btnGrip:IsHovered() then
+            draw.RoundedBox(2, 0, 0, w, h, Color(42, 40, 35, 66))
+        end
+    end
+    function parentScrollBar.btnGrip:Paint(w, h)
+        if self:IsHovered() then
+            draw.RoundedBox(8, 0, 0, w, h, Color(76, 76, 74, 100))
+        end
+    end
+
+    SmoothScrollBar(parentScrollBar)
+
+    return parentScrPanel
+end
+
+local function WikiInfoPanel(parent, infotable, x, y, w, h)
+    if infotable == nil or !IsValid(parent) then return end
+
+    local itemButton = vgui.Create("DPanel", parent)
+    itemButton:SetSize(w, h)
+    itemButton:SetPos(x, y)
+
+    local printname = infotable.printname
+
+    function itemButton:Paint(w, h)
+        draw.DrawText(printname, "chicagoRP_NPCShop", (w / 2) - 10, 10, whitecolor, TEXT_ALIGN_LEFT)
+        draw.RoundedBox(4, 0, 0, w, h, graycolor)
+
+        return true
+    end
+
+    local spawnicon = OptimizedSpawnIcon(itemButton, infotable.model, 100, 50, 64, 64)
+
+    spawnicon.Think = nil
+
+    local statPanel = InfoParentPanel(parent, itemtbl, 2, 100, w - 4, 100)
+
+    infotable["printname"] = nil
+
+    for _, v in ipairs(infotable) do
+        if isempty(v) then continue end
+
+        InfoTextPanel(parent, v, whitecolor, (w / 2) - 4, 25)
+    end
+
+    return itemButton
 end
 
 surface.CreateFont("chicagoRP_wikiGUI", {
@@ -92,6 +322,8 @@ net.Receive("chicagoRP_wikiGUI", function()
         BlurBackground(self)
     end
 
+    contenttable = {}
+
 	local sheet = vgui.Create("DPropertySheet", frame)
 	sheet:Dock(FILL)
 	sheet:AddSheet("Weapons", weaponsCategoryList, "icon16/cross.png")
@@ -101,19 +333,94 @@ net.Receive("chicagoRP_wikiGUI", function()
     weaponsCategoryList:SetPos(50, 50)
     weaponsCategoryList:SetSize(920, 500)
 
+    local wikiPageFrame = vgui.Create("DScrollPanel", parent)
+    wikiPageFrame:SetSize(1300, 700)
+    wikiPageFrame:SetPos(100, 200)
+
+    local wikiFrameScrollBar = wikiPageFrame:GetVBar()
+
+    SmoothScrollBar(wikiFrameScrollBar)
+
+    local wikiPageW, wikiPageH = wikiPageFrame:GetSize()
+
+    function wikiPageFrame:Paint(w, h)
+        return nil
+    end
+
+    function wikiPageFrame:InvalidateLayout()
+        for _, v in ipairs(self:GetChildren()) do
+            v:Remove()
+        end
+    end
+
 	local weaponsCategoryListCollapsor = weaponsCategoryList:Add("Weapons (remove this with paint)")
-	local AKMbutton = weaponsCategoryListCollapsor:Add("Item 1")
-	local Glockbutton = weaponsCategoryListCollapsor:Add("Item 2")
+	local AKMbutton = weaponsCategoryListCollapsor:Add("AKM")
+	local Glockbutton = weaponsCategoryListCollapsor:Add("Glock 17")
 
 	function AKMbutton:DoClick()
-	    print("Glock was clicked.")
+        contenttable = {}
+
+	    print("AKM was clicked.")
+
+        local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW, wikiPageH)
+
+        local contentpanel = ContentsPanel(parent, x, y, w, h)
+
+        local sanitizedtbl = chicagoRP_Wiki.akm[1] = nil
+
+        local contentindex = 0
+
+        for _, v in ipairs(sanitizedtbl) do
+            PrintTable(v)
+            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, x, y, w, h)
+
+            contentindex = contentindex + 1
+
+            table.insert(contenttable, txtpanel)
+
+            local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
+
+            function contentbutton:DoClick()
+                local _, contentPos = contenttable[self.Index]:GetPos()
+
+                print(contentPos)
+
+                wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
+            end
+        end
 	end
 
 	function Glockbutton:DoClick()
+        contenttable = {}
+
 	    print("Glock was clicked.")
-	    for _, v in ipairs(chicagoRP_Wiki.glock17) do
-	    	PrintTable(v)
-	    end
+
+	    local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW, wikiPageH)
+
+        local contentpanel = ContentsPanel(parent, x, y, w, h)
+
+        local sanitizedtbl = chicagoRP_Wiki.glock17[1] = nil
+
+        local contentindex = 0
+
+        for _, v in ipairs(sanitizedtbl) do
+            PrintTable(v)
+            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, x, y, w, h)
+
+            contentindex = contentindex + 1
+
+            table.insert(contenttable, txtpanel)
+
+            local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
+
+            function contentbutton:DoClick()
+                local _, contentPos = contenttable[self.Index]:GetPos()
+
+                print(contentPos)
+
+                wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
+            end
+        end
 	end
 
     -- function weaponsCategoryList:Paint(w, h)

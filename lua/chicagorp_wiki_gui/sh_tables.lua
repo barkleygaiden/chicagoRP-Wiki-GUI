@@ -1,6 +1,16 @@
 chicagoRP_Wiki = chicagoRP_Wiki or {}
 
-chicagoRP_Wiki.radioplaylists = {
+chicagoRP_Wiki.maincategories = {
+    {
+        name = "weapons",
+        printname = "Weapons",
+    }, {
+        name = "armor",
+        printname = "Armor"
+    }
+}
+
+chicagoRP_Wiki.weapons = {
     {
         name = "akm",
         printname = "AKM",
