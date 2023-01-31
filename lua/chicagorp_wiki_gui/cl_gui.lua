@@ -8,6 +8,14 @@ local blackcolor = Color(0, 0, 0, 255)
 local blurMat = Material("pp/blurscreen")
 local contenttable = {}
 
+list.Set("DesktopWindows", "chicagoRP Wiki", {
+    title = "Wiki",
+    icon = "icon64/chicagorp_settings.png",
+    init = function(icon, window)
+        LocalPlayer():ConCommand("chicagoRP_wikiGUI")
+    end
+})
+
 local function isempty(s)
     return s == nil or s == ''
 end
