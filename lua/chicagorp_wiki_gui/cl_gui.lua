@@ -41,6 +41,15 @@ local function BlurBackground(panel)
     Dynamic = math.Clamp(Dynamic + (1 / FrameRate) * 7, 0, 1)
 end
 
+local function PrettifyString(str)
+    local cachestr = str
+    if string.StartWith(str, "%u") then return str end
+
+    local upperstr = string.gsub(cachestr, "^%l", string.upper)
+
+    return upperstr
+end
+
 local function SmoothScrollBar(vbar) -- why
     vbar.nInit = vbar.Init
     function vbar:Init()
