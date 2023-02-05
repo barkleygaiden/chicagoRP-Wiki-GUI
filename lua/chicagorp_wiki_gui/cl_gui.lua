@@ -124,6 +124,7 @@ local function ContentButton(parent, index, text, w, h)
     end
 
     return contentButton
+end
 
 local function ContentsPanel(parent, x, y, w, h)
     local contentsScrPanel = vgui.Create("DScrollPanel", parent)
@@ -152,7 +153,7 @@ local function ContentsPanel(parent, x, y, w, h)
     return contentsScrPanel
 end
 
-local function WikiTextPanel(parent, sectionname, contents, x, y, w, h)
+local function WikiTextPanel(parent, sectionname, contents, x, y, infopanelW, infopanelcoord)
     local wikiTxtPanel = vgui.Create("DLabel", parent)
     wikiTxtPanel:SetPos(x, y)
     wikiTxtPanel:SetSize(w, h)
@@ -171,6 +172,15 @@ local function WikiTextPanel(parent, sectionname, contents, x, y, w, h)
 
     wikiTxtPanel:SetWrap(true)
     wikiTxtPanel:SetAutoStretchVertical(true)
+
+    Panel:SizeToContents(5)
+
+    local newsizeW, newsizeH = wikiTxtPanel:GetSize()
+    local newposX, newposY = wikiTxtPanel:GetPos()
+
+    if infopanelcoord => newposX then
+        wikiTxtPanel:SetSize(newsizeW - infopanelW - 10, newsizeH)
+    end
 
     return wikiTxtPanel
 end
@@ -379,20 +389,23 @@ net.Receive("chicagoRP_wikiGUI", function()
 
 	    print("AKM was clicked.")
 
-        local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW, wikiPageH)
-
-        local contentpanel = ContentsPanel(parent, x, y, w, h)
+        local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW - 50, wikiPageH - 100, 400, 1200)
+        local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
 
         local sanitizedtbl = chicagoRP_Wiki.akm[1] = nil
-
         local contentindex = 0
+
+        local textpanelX = wikiPageH - 200
+
+        local mainpanelW, mainpanelH = WikiInfoPanel:GetSize()
+        local mainpanelX, mainpanelY = WikiInfoPanel:GetPos()
+
+        local infoPanelfinalcoord = mainpanelH + mainpanelY
 
         for _, v in ipairs(sanitizedtbl) do
             PrintTable(v)
-            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, x, y, w, h)
-
+            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, textpanelX, 100, mainpanelW, infoPanelfinalcoord)
             contentindex = contentindex + 1
-
             table.insert(contenttable, txtpanel)
 
             local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
@@ -404,6 +417,10 @@ net.Receive("chicagoRP_wikiGUI", function()
 
                 wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
             end
+
+            local _, txtpanelH = txtpanelH:GetSize()
+
+            textpanelX = textpanelX + txtpanelH + 50
         end
 	end
 
@@ -412,20 +429,23 @@ net.Receive("chicagoRP_wikiGUI", function()
 
 	    print("Glock was clicked.")
 
-	    local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW, wikiPageH)
-
-        local contentpanel = ContentsPanel(parent, x, y, w, h)
+	    local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW - 50, wikiPageH - 100, 400, 1200)
+        local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
 
         local sanitizedtbl = chicagoRP_Wiki.glock17[1] = nil
-
         local contentindex = 0
+
+        local textpanelX = wikiPageH - 200
+
+        local mainpanelW, mainpanelH = WikiInfoPanel:GetSize()
+        local mainpanelX, mainpanelY = WikiInfoPanel:GetPos()
+
+        local infoPanelfinalcoord = mainpanelH + mainpanelY
 
         for _, v in ipairs(sanitizedtbl) do
             PrintTable(v)
-            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, x, y, w, h)
-
+            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, textpanelX, 100, mainpanelW, infoPanelfinalcoord)
             contentindex = contentindex + 1
-
             table.insert(contenttable, txtpanel)
 
             local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
@@ -437,6 +457,10 @@ net.Receive("chicagoRP_wikiGUI", function()
 
                 wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
             end
+
+            local _, txtpanelH = txtpanelH:GetSize()
+
+            textpanelX = textpanelX + txtpanelH + 50
         end
 	end
 
