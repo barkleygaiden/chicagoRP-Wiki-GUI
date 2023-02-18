@@ -478,7 +478,10 @@ end)
 
 print("chicagoRP Wiki GUI loaded!")
 
-
+-- to-do:
+-- bulleted lists
+-- image support
+-- clickable links
 
 
 
