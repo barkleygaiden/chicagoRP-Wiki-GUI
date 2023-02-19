@@ -50,6 +50,14 @@ local function PrettifyString(str)
     return upperstr
 end
 
+local function GetTextHeight(text, font)
+    surface.SetFont(font)
+
+    local height = select(2, surface.GetTextSize(text))
+
+    return height
+end
+
 local function SmoothScrollBar(vbar) -- why
     vbar.nInit = vbar.Init
     function vbar:Init()
@@ -106,6 +114,36 @@ local function SmoothScrollBar(vbar) -- why
     end
 end
 
+local function WrapText(text, font, maxwidth)
+    local words = string.Explode(" ", text) -- Split the text into words
+    local lines = {} -- Table to store lines of text
+
+    local line = "" -- Current line of text being built
+    local textHeight = GetTextHeight(" ", font) -- Get the height of the text
+
+    surface.SetFont(font)
+
+    for _, word in ipairs(words) do -- Loop through each word
+        local width = surface.GetTextSize(line .. word .. " ") -- Calculate the size of the text if the current word is added to the current line
+
+        if width > maxwidth then -- If the width of the text exceeds maxwidth, add the current line to the table of lines and start a new line with the current word
+            table.insert(lines, line)
+            line = word .. " "
+        else -- Otherwise, add the current word to the current line
+            line = line .. word .. " "
+        end
+    end
+
+    table.insert(lines, line) -- Add the last line to the table of lines
+
+    return lines
+
+    -- -- Loop through each line and draw it on the screen
+    -- for i, Line in ipairs(lines) do
+    --     draw.DrawText(Line, font, x, y + (i - 1) * textHeight, color_black, align)
+    -- end
+end
+
 local function ContentButton(parent, index, text, w, h)
     local contentButton = parent:Add("DButton")
     contentButton:Dock(TOP)
@@ -153,7 +191,7 @@ local function ContentsPanel(parent, x, y, w, h)
     return contentsScrPanel
 end
 
-local function WikiTextPanel(parent, sectionname, contents, x, y, infopanelW, infopanelcoord)
+local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopanelW, infopanelcoord)
     local wikiTxtPanel = vgui.Create("DLabel", parent)
     wikiTxtPanel:SetPos(x, y)
     wikiTxtPanel:SetSize(w, h)
@@ -162,24 +200,31 @@ local function WikiTextPanel(parent, sectionname, contents, x, y, infopanelW, in
 
     wikiTxtPanel.Think = nil
 
-    function wikiTxtPanel:SetSize(w, h):Paint(w, h)
-        draw.DrawText(sectionname, "chicagoRP_NPCShop", 0, 0, blackcolor, TEXT_ALIGN_LEFT)
+    wikiTxtPanel:SetWrap(true)
+    wikiTxtPanel:SetAutoStretchVertical(true)
+
+    local wrappedlines = WrapText(contents, "Default", w)
+
+    function wikiTxtPanel:Paint(w, h)
+        draw.DrawText(sectionname, "Default", 0, 0, blackcolor, TEXT_ALIGN_LEFT)
         draw.RoundedBox(2, 0, 10, 100, 4, blackColor)
-        draw.DrawText(contents, "chicagoRP_NPCShop", 20, 0, blackcolor, TEXT_ALIGN_LEFT)
+        -- draw.DrawText(contents, "Default", 20, 0, blackcolor, TEXT_ALIGN_LEFT)
+
+        for i, line in ipairs(wrappedlines) do
+            draw.DrawText(line, font, x, y + (i - 1) * textHeight, color_black, align)
+        end
 
         return nil
     end
 
-    wikiTxtPanel:SetWrap(true)
-    wikiTxtPanel:SetAutoStretchVertical(true)
-
-    Panel:SizeToContents(5)
+    wikiTxtPanel:SizeToContents(5)
 
     local newsizeW, newsizeH = wikiTxtPanel:GetSize()
     local newposX, newposY = wikiTxtPanel:GetPos()
 
-    if infopanelcoord => newposX then
+    if infopanelcoord => newposY then
         wikiTxtPanel:SetSize(newsizeW - infopanelW - 10, newsizeH)
+        wrappedlines = WrapText(contents, "Default", newsizeW - infopanelW - 10)
     end
 
     return wikiTxtPanel
@@ -247,6 +292,8 @@ local function InfoParentPanel(parent, itemtbl, x, y, w, h)
     end
     function parentScrollBar.btnGrip:Paint(w, h)
         if self:IsHovered() then
+            draw.RoundedBox(8, 0, 0, w, h, Color(96, 96, 94, 100))
+        else
             draw.RoundedBox(8, 0, 0, w, h, Color(76, 76, 74, 100))
         end
     end
@@ -384,10 +431,10 @@ net.Receive("chicagoRP_wikiGUI", function()
 	local AKMbutton = weaponsCategoryListCollapsor:Add("AKM")
 	local Glockbutton = weaponsCategoryListCollapsor:Add("Glock 17")
 
-	function AKMbutton:DoClick()
+    function AKMbutton:DoClick()
         contenttable = {}
 
-	    print("AKM was clicked.")
+        print("AKM was clicked.")
 
         local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW - 50, wikiPageH - 100, 400, 1200)
         local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
@@ -395,16 +442,16 @@ net.Receive("chicagoRP_wikiGUI", function()
         local sanitizedtbl = chicagoRP_Wiki.akm[1] = nil
         local contentindex = 0
 
-        local textpanelX = wikiPageH - 200
+        local textpanelY = wikiPageH - 200
 
         local mainpanelW, mainpanelH = WikiInfoPanel:GetSize()
-        local mainpanelX, mainpanelY = WikiInfoPanel:GetPos()
+        local mainpanelY = select(2, WikiInfoPanel:GetPos())
 
         local infoPanelfinalcoord = mainpanelH + mainpanelY
 
         for _, v in ipairs(sanitizedtbl) do
             PrintTable(v)
-            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, textpanelX, 100, mainpanelW, infoPanelfinalcoord)
+            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, wikiPageW - 100, 100, 100, textpanelY, mainpanelW, infoPanelfinalcoord)
             contentindex = contentindex + 1
             table.insert(contenttable, txtpanel)
 
@@ -418,11 +465,11 @@ net.Receive("chicagoRP_wikiGUI", function()
                 wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
             end
 
-            local _, txtpanelH = txtpanelH:GetSize()
+            local txtpanelH = select(2, txtpanel:GetSize())
 
-            textpanelX = textpanelX + txtpanelH + 50
+            textpanelY = textpanelY + txtpanelH + 50
         end
-	end
+    end
 
 	function Glockbutton:DoClick()
         contenttable = {}
@@ -479,9 +526,11 @@ end)
 print("chicagoRP Wiki GUI loaded!")
 
 -- to-do:
+-- create image panel (dynamically create and remove materials, do NOT cache them forever)
+-- create expanded image panel
+-- set wrap maxwidth to -5 where image panel is
 -- bulleted lists
--- image support
--- clickable links
+-- clickable links (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
 
 
 
