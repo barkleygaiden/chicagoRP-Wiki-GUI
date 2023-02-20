@@ -336,6 +336,72 @@ local function WikiInfoPanel(parent, infotable, x, y, w, h)
     return itemButton
 end
 
+local function WikiImagePanel()
+end
+
+local function ExpandedImagePanel(image)
+    if type(image) != "material" then return end
+
+    local imageW, imageH = image:Width(), image:Height()
+
+    local motherFrame = vgui.Create("DFrame")
+    motherFrame:SetSize(screenwidth / 2, screenheight / 2)
+    motherFrame:SetVisible(true)
+    motherFrame:SetDraggable(false)
+    motherFrame:ShowCloseButton(false)
+    motherFrame:SetTitle("")
+    motherFrame:ParentToHUD()
+
+    chicagoRP.PanelFadeIn(motherFrame, 0.15)
+
+    motherFrame:MakePopup()
+    motherFrame:Center()
+
+    function motherFrame:OnKeyCodePressed(key)
+        if key == KEY_ESCAPE or key == KEY_Q then
+            chicagoRP.PanelFadeOut(motherFrame, 0.15)
+
+            timer.Simple(0.15, function()
+                if IsValid(self) then
+                    self:Close()
+                end
+            end)
+        end
+    end
+
+    function motherFrame:OnMousePressed(mouseCode)
+        if mouseCode == MOUSE_FIRST then
+            chicagoRP.PanelFadeOut(motherFrame, 0.15)
+
+            timer.Simple(0.15, function()
+                if IsValid(self) then
+                    self:Close()
+                end
+            end)
+        end
+    end
+
+    function motherFrame:Paint(w, h)
+        surface.SetDrawColor(50, 50, 50, 100)
+        surface.DrawRect(0, 0, w, h)
+
+        -- BlurBackground(self)
+    end
+
+    local imagePanel = vgui.Create("DPanel", parent)
+    imagePanel:SetSize(imageW, imageH)
+
+    imagePanel:Center()
+
+    function imagePanel:Paint(w, h)
+        surface.DrawTexturedRectUV(0, 0, w, h, 0, 0, 1, 1)
+
+        return nil
+    end
+
+    return motherFrame, imagePanel
+end
+
 surface.CreateFont("chicagoRP_wikiGUI", {
     font = "Roboto",
     size = 36,
@@ -527,7 +593,7 @@ print("chicagoRP Wiki GUI loaded!")
 
 -- to-do:
 -- create image panel (dynamically create and remove materials, do NOT cache them forever)
--- create expanded image panel
+-- create expanded image panel (set clamp on max panel size based on ScrW and ScrH)
 -- set wrap maxwidth to -5 where image panel is
 -- bulleted lists
 -- clickable links (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
