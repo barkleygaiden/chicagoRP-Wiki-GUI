@@ -1,5 +1,6 @@
 local HideHUD = false
 local OpenMotherFrame = nil
+local OpenSheet = nil
 local Dynamic = 0
 local enabled = GetConVar("cl_chicagoRP_wikiGUI_enable"):GetBool()
 local reddebug = Color(200, 10, 10, 150)
@@ -7,6 +8,9 @@ local whitecolor = Color(255, 255, 255, 255)
 local blackcolor = Color(0, 0, 0, 255)
 local blurMat = Material("pp/blurscreen")
 local contenttable = {}
+local historytable = {}
+
+local historytblposition = 1
 
 list.Set("DesktopWindows", "chicagoRP Wiki", {
     title = "Wiki",
@@ -18,6 +22,10 @@ list.Set("DesktopWindows", "chicagoRP Wiki", {
 
 local function isempty(s)
     return s == nil or s == ''
+end
+
+local function ismaterial(mat)
+    return type(mat) == Material
 end
 
 local function BlurBackground(panel)
@@ -50,12 +58,35 @@ local function PrettifyString(str)
     return upperstr
 end
 
+local function GetChildIndex(parent, panel)
+    if !IsValid(parent) or !IsValid(panel) then return end
+
+    local children = parent:GetChildren()
+
+    for i, child in ipairs(children) do
+        if child == panel then return i end
+    end
+end
+
 local function GetTextHeight(text, font)
     surface.SetFont(font)
 
     local height = select(2, surface.GetTextSize(text))
 
     return height
+end
+
+local function GetImageSize(image, resdivide, imagedivide)
+    if !ismaterial(image) then return end
+
+    local scrW, scrH = ScrW(), ScrH()
+    local imageW, imageH = image:Width(), image:Height()
+
+    if imageW > (scrW / resdivide) or imageH > (scrH / resdivide) then
+        return math.Round(imageW / divide), math.Round(imageH / divide)
+    else
+        return imageW, imageH
+    end
 end
 
 local function SmoothScrollBar(vbar) -- why
@@ -204,6 +235,7 @@ local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopane
     wikiTxtPanel:SetAutoStretchVertical(true)
 
     local wrappedlines = WrapText(contents, "Default", w)
+    local textHeight = GetTextHeight(" ", "Default")
 
     function wikiTxtPanel:Paint(w, h)
         draw.DrawText(sectionname, "Default", 0, 0, blackcolor, TEXT_ALIGN_LEFT)
@@ -211,7 +243,7 @@ local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopane
         -- draw.DrawText(contents, "Default", 20, 0, blackcolor, TEXT_ALIGN_LEFT)
 
         for i, line in ipairs(wrappedlines) do
-            draw.DrawText(line, font, x, y + (i - 1) * textHeight, color_black, align)
+            draw.DrawText(line, "Default", x, y + (i - 1) * textHeight, color_black, TEXT_ALIGN_LEFT)
         end
 
         return nil
@@ -336,16 +368,130 @@ local function WikiInfoPanel(parent, infotable, x, y, w, h)
     return itemButton
 end
 
-local function WikiImagePanel()
+local function WikiImagePanel(x, y, img, content, parent)
+    local image = Material(img, "smooth mips")
+
+    if !ismaterial(image) then return end
+
+    local imageW, imageH = GetImageSize(image, 2, 3)
+
+    local imageFrame = vgui.Create("DPanel", parent)
+    imageFrame:SetPos(x, y)
+    imageFrame:SetSize(imageW + 10, imageH + 10)
+
+    function imageFrame:Paint(w, h)
+        surface.SetDrawColor(200, 200, 200, 255)
+        surface.DrawRect(0, 0, w, h)
+    end
+
+    function imageFrame:OnRemove()
+        image = nil
+    end
+
+    local imagePanel = vgui.Create("DButton", parent)
+    imagePanel:Dock(TOP)
+    imagePanel:DockMargin(5, 5, 5, 5)
+    imagePanel:SetSize(imageW, imageH)
+
+    function imagePanel:Paint(w, h)
+        surface.SetMaterial(image)
+        surface.DrawTexturedRectUV(5, 5, imageW, imageH, 0, 0, 1, 1)
+
+        return nil
+    end
+
+    function imagePanel:DoClick()
+        ExpandedImagePanel(image)
+    end
+
+    local imageLabel = vgui.Create("DLabel", imageFrame)
+    imageLabel:Dock(BOTTOM)
+    imageLabel:DockMargin(0, 5, 0, 5)
+
+    imageLabel.Think = nil
+
+    imageLabel:SetWrap(true)
+    imageLabel:SetAutoStretchVertical(true)
+
+    local wrappedlines = WrapText(content, "Default", imageW)
+    local textHeight = GetTextHeight(content, "Default")
+
+    function imageLabel:Paint(w, h)
+        for i, line in ipairs(wrappedlines) do
+            draw.DrawText(line, "Default", x, y + (i - 1) * textHeight, color_black, TEXT_ALIGN_LEFT)
+        end
+
+        return nil
+    end
+
+    imageLabel:SizeToContents(5)
+
+    local newsizeW, newsizeH = imageLabel:GetSize()
+end
+
+local function HistoryForwardButton(x, y, w, h, parent, tbl)
+    if !IsValid(parent) or !istable(tbl) then return end
+
+    local forwardButton = vgui.Create("DButton", parent)
+    forwardButton:SetPos(x, y)
+    forwardButton:SetSize(w, h)
+
+    function forwardButton:Paint(w, h)
+        if #tbl <= 1 then return nil
+
+        draw.DrawText("Back", "chicagoRP_NPCShop", 0, 0, Color(20, 200, 20, 255), TEXT_ALIGN_LEFT)
+
+        return nil
+    end
+
+    function forwardButton:DoClick()
+        local button = historyarray[historytblposition].category:GetChild(index + 1)
+
+        OpenSheet:SetActiveTab(historyarray[historytblposition].tab)
+        OpenWikiFrame:SetScroll(historyarray[historytblposition].scrolllevel)
+        button:DoClick()
+        
+        historytblposition = historytblposition + 1
+    end
+
+    return forwardButton
+end
+
+local function HistoryBackButton(x, y, w, h, parent, tbl)
+    if !IsValid(parent) or !istable(tbl) then return end
+
+    local backButton = vgui.Create("DButton", parent)
+    backButton:SetPos(x, y)
+    backButton:SetSize(w, h)
+
+    function backButton:Paint(w, h)
+        if #tbl <= 1 then return nil
+
+        draw.DrawText("Back", "chicagoRP_NPCShop", 0, 0, Color(20, 200, 20, 255), TEXT_ALIGN_LEFT)
+
+        return nil
+    end
+
+    function backButton:DoClick()
+        local button = historyarray[historytblposition].category:GetChild(index + 1)
+
+        OpenSheet:SetActiveTab(historyarray[historytblposition].tab)
+        OpenWikiFrame:SetScroll(historyarray[historytblposition].scrolllevel)
+        button:DoClick()
+        
+        historytblposition = historytblposition - 1
+    end
+
+    return backButton
 end
 
 local function ExpandedImagePanel(image)
-    if type(image) != "material" then return end
+    if !ismaterial(image) then return end
 
-    local imageW, imageH = image:Width(), image:Height()
+    local imageW, imageH = GetImageSize(image, 1.6, 1.6)
 
     local motherFrame = vgui.Create("DFrame")
-    motherFrame:SetSize(screenwidth / 2, screenheight / 2)
+    motherFrame:SetSize(screenwidth, screenheight)
     motherFrame:SetVisible(true)
     motherFrame:SetDraggable(false)
     motherFrame:ShowCloseButton(false)
@@ -463,15 +609,22 @@ net.Receive("chicagoRP_wikiGUI", function()
     end
 
     contenttable = {}
+    historytable = {}
+
+    historytblposition = 1
+
+    local activetab = nil
+    local catpanel = nil
+    local historybutton = nil
+
+    local weaponsCategoryList = vgui.Create("DCategoryList", motherFrame)
+    weaponsCategoryList:SetPos(50, 50)
+    weaponsCategoryList:SetSize(920, 500)
 
 	local sheet = vgui.Create("DPropertySheet", frame)
 	sheet:Dock(FILL)
 	sheet:AddSheet("Weapons", weaponsCategoryList, "icon16/cross.png")
 	-- sheet:AddSheet("Items", panel2, "icon16/tick.png")
-
-    local weaponsCategoryList = vgui.Create("DCategoryList", motherFrame)
-    weaponsCategoryList:SetPos(50, 50)
-    weaponsCategoryList:SetSize(920, 500)
 
     local wikiPageFrame = vgui.Create("DScrollPanel", parent)
     wikiPageFrame:SetSize(1300, 700)
@@ -500,9 +653,38 @@ net.Receive("chicagoRP_wikiGUI", function()
     function AKMbutton:DoClick()
         contenttable = {}
 
+        local buttonindex = GetChildIndex(catpanel, historybutton)
+        local scrollpos = wikiFrameScrollBar:GetScroll()
+
+        if IsValid(historybutton) then
+            local historyarray = {tab = activetab, category = catpanel, index = buttonindex, buttonpanel = button, scrolllevel = scrollpos}
+
+            table.insert(historytable, historyarray)
+        end
+
+        activetab = sheet:GetActiveTab()
+        catpanel = activetab:GetPanel()
+        historybutton = self
+
+        local tblcount = #historytbl
+
+        local tblahead = tblcount + historytblposition -- 10, -3
+
+        if tblcount > 0 and tblahead != tblcount then
+            for i = tblahead, tblcount do
+                historytbl[i] = nil
+            end
+
+            historytblposition = 1
+        end
+
+        wikiPageFrame:PerformLayout()
+
         print("AKM was clicked.")
 
-        local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW - 50, wikiPageH - 100, 400, 1200)
+        wikiFrameScrollBar:SetScroll(1)
+
+        local infopanel = WikiInfoPanel(wikiPageFrame, chicagoRP.akm[1], wikiPageW - 50, wikiPageH - 100, 400, 1200)
         local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
 
         local sanitizedtbl = chicagoRP_Wiki.akm[1] = nil
@@ -517,9 +699,15 @@ net.Receive("chicagoRP_wikiGUI", function()
 
         for _, v in ipairs(sanitizedtbl) do
             PrintTable(v)
+            local imagepanel = nil
             local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, wikiPageW - 100, 100, 100, textpanelY, mainpanelW, infoPanelfinalcoord)
             contentindex = contentindex + 1
+
             table.insert(contenttable, txtpanel)
+
+            if ismaterial(v.image) then
+                imagepanel = WikiImagePanel(textpanelY, wikiPageW - (wikiPageW - 10), v.image, v.imagecontents, wikiPageFrame)
+            end
 
             local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
 
@@ -531,6 +719,21 @@ net.Receive("chicagoRP_wikiGUI", function()
                 wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
             end
 
+            if IsValid(imagepanel) then
+                local imagepanelW, imagepanelH = imagepanel:GetSize()
+                local imagepanelY = select(2, imagepanel:GetPos())
+
+                local imagepanelfinalcoord = imagepanelH + imagepanelY
+
+                local newsizeW, newsizeH = txtpanel:GetSize()
+                local newposX, newposY = txtpanel:GetPos()
+
+                if infopanelcoord => newposY then
+                    txtpanel:SetSize(newsizeW - imagepanelW - 10, newsizeH)
+                    wrappedlines = WrapText(v.contents, "Default", newsizeW - imagepanelW - 10)
+                end
+            end
+
             local txtpanelH = select(2, txtpanel:GetSize())
 
             textpanelY = textpanelY + txtpanelH + 50
@@ -540,9 +743,26 @@ net.Receive("chicagoRP_wikiGUI", function()
 	function Glockbutton:DoClick()
         contenttable = {}
 
+        local buttonindex = GetChildIndex(catpanel, historybutton)
+        local scrollpos = wikiFrameScrollBar:GetScroll()
+
+        if IsValid(historybutton) then
+            local historyarray = {tab = activetab, category = catpanel, index = buttonindex, buttonpanel = button, scrolllevel = scrollpos}
+
+            table.insert(historytable, historyarray)
+        end
+
+        activetab = sheet:GetActiveTab()
+        catpanel = activetab:GetPanel()
+        historybutton = self
+
+        wikiPageFrame:PerformLayout()
+
+        wikiFrameScrollBar:SetScroll(1)
+
 	    print("Glock was clicked.")
 
-	    local infopanel = WikiInfoPanel(wikiPageFrame, v, wikiPageW - 50, wikiPageH - 100, 400, 1200)
+	    local infopanel = WikiInfoPanel(wikiPageFrame, chicagoRP.glock17[1], wikiPageW - 50, wikiPageH - 100, 400, 1200)
         local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
 
         local sanitizedtbl = chicagoRP_Wiki.glock17[1] = nil
@@ -587,24 +807,17 @@ net.Receive("chicagoRP_wikiGUI", function()
 	-- end
 
     OpenMotherFrame = motherFrame
+    OpenSheet = sheet
+    OpenWikiFrame = wikiPageFrame
 end)
 
 print("chicagoRP Wiki GUI loaded!")
 
 -- to-do:
--- create image panel (dynamically create and remove materials, do NOT cache them forever)
--- create expanded image panel (set clamp on max panel size based on ScrW and ScrH)
--- set wrap maxwidth to -5 where image panel is
+-- add loop to create buttons, stop doing them manually
+-- history back/forwards button (create button, stop history from being cleared when going back/forwards)
 -- bulleted lists
--- clickable links (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
-
-
-
-
-
-
-
-
+-- clickable links (how do we designate text as clickable???) (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
 
 
 
