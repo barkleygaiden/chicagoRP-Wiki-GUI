@@ -617,14 +617,14 @@ net.Receive("chicagoRP_wikiGUI", function()
     local catpanel = nil
     local historybutton = nil
 
-    local weaponsCategoryList = vgui.Create("DCategoryList", motherFrame)
-    weaponsCategoryList:SetPos(50, 50)
-    weaponsCategoryList:SetSize(920, 500)
+    local sheet = vgui.Create("DPropertySheet", frame)
+    sheet:Dock(FILL)
 
-	local sheet = vgui.Create("DPropertySheet", frame)
-	sheet:Dock(FILL)
-	sheet:AddSheet("Weapons", weaponsCategoryList, "icon16/cross.png")
-	-- sheet:AddSheet("Items", panel2, "icon16/tick.png")
+    local categoryScrollPanel = vgui.Create("DScrollPanel", motherFrame)
+
+    local categoryScrollBar = categoryScrollPanel:GetVBar()
+
+    SmoothScrollBar(categoryScrollBar)
 
     local wikiPageFrame = vgui.Create("DScrollPanel", parent)
     wikiPageFrame:SetSize(1300, 700)
@@ -646,156 +646,110 @@ net.Receive("chicagoRP_wikiGUI", function()
         end
     end
 
-	local weaponsCategoryListCollapsor = weaponsCategoryList:Add("Weapons (remove this with paint)")
-	local AKMbutton = weaponsCategoryListCollapsor:Add("AKM")
-	local Glockbutton = weaponsCategoryListCollapsor:Add("Glock 17")
+    for _, v in ipairs(chicagoRP_Wiki.maincategories) do
+        local categoryList = vgui.Create("DCategoryList", categoryScrollPanel)
+        categoryList:Dock(TOP)
+        categoryList:SetSize(920, 500)
 
-    function AKMbutton:DoClick()
-        contenttable = {}
+        sheet:AddSheet(v.printname, categoryList, "icon16/cross.png")
 
-        local buttonindex = GetChildIndex(catpanel, historybutton)
-        local scrollpos = wikiFrameScrollBar:GetScroll()
+        local categoryListCollapsor = categoryList:Add("Weapons (remove this with paint)")
+        -- sheet:AddSheet("Items", panel2, "icon16/tick.png")
 
-        if IsValid(historybutton) then
-            local historyarray = {tab = activetab, category = catpanel, index = buttonindex, buttonpanel = button, scrolllevel = scrollpos}
+        for _, v in ipairs(chicagoRP_Wiki.[v.name]) do
+            local itembutton = categoryListCollapsor:Add(v.printname)
 
-            table.insert(historytable, historyarray)
-        end
+            function itembutton:DoClick()
+                contenttable = {}
 
-        activetab = sheet:GetActiveTab()
-        catpanel = activetab:GetPanel()
-        historybutton = self
+                local buttonindex = GetChildIndex(catpanel, historybutton)
+                local scrollpos = wikiFrameScrollBar:GetScroll()
 
-        local tblcount = #historytbl
+                if IsValid(historybutton) then
+                    local historyarray = {tab = activetab, category = catpanel, index = buttonindex, buttonpanel = button, scrolllevel = scrollpos}
 
-        local tblahead = tblcount + historytblposition -- 10, -3
+                    table.insert(historytable, historyarray)
+                end
 
-        if tblcount > 0 and tblahead != tblcount then
-            for i = tblahead, tblcount do
-                historytbl[i] = nil
-            end
+                activetab = sheet:GetActiveTab()
+                catpanel = activetab:GetPanel()
+                historybutton = self
 
-            historytblposition = 1
-        end
+                local tblcount = #historytbl
 
-        wikiPageFrame:PerformLayout()
+                local tblahead = tblcount + historytblposition -- 10, -3
 
-        print("AKM was clicked.")
+                if tblcount > 0 and tblahead != tblcount then
+                    for i = tblahead, tblcount do
+                        historytbl[i] = nil
+                    end
 
-        wikiFrameScrollBar:SetScroll(1)
+                    historytblposition = 1
+                end
 
-        local infopanel = WikiInfoPanel(wikiPageFrame, chicagoRP.akm[1], wikiPageW - 50, wikiPageH - 100, 400, 1200)
-        local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
+                wikiPageFrame:PerformLayout()
 
-        local sanitizedtbl = chicagoRP_Wiki.akm[1] = nil
-        local contentindex = 0
+                print(v.printname .. " was clicked.")
 
-        local textpanelY = wikiPageH - 200
+                wikiFrameScrollBar:SetScroll(1)
 
-        local mainpanelW, mainpanelH = WikiInfoPanel:GetSize()
-        local mainpanelY = select(2, WikiInfoPanel:GetPos())
+                local infopanel = WikiInfoPanel(wikiPageFrame, chicagoRP.akm[1], wikiPageW - 50, wikiPageH - 100, 400, 1200)
+                local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
 
-        local infoPanelfinalcoord = mainpanelH + mainpanelY
+                local sanitizedtbl = chicagoRP_Wiki.akm[1] = nil
+                local contentindex = 0
 
-        for _, v in ipairs(sanitizedtbl) do
-            PrintTable(v)
-            local imagepanel = nil
-            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, wikiPageW - 100, 100, 100, textpanelY, mainpanelW, infoPanelfinalcoord)
-            contentindex = contentindex + 1
+                local textpanelY = wikiPageH - 200
 
-            table.insert(contenttable, txtpanel)
+                local mainpanelW, mainpanelH = WikiInfoPanel:GetSize()
+                local mainpanelY = select(2, WikiInfoPanel:GetPos())
 
-            if ismaterial(v.image) then
-                imagepanel = WikiImagePanel(textpanelY, wikiPageW - (wikiPageW - 10), v.image, v.imagecontents, wikiPageFrame)
-            end
+                local infoPanelfinalcoord = mainpanelH + mainpanelY
 
-            local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
+                for _, v in ipairs(sanitizedtbl) do
+                    PrintTable(v)
+                    local imagepanel = nil
+                    local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, wikiPageW - 100, 100, 100, textpanelY, mainpanelW, infoPanelfinalcoord)
+                    contentindex = contentindex + 1
 
-            function contentbutton:DoClick()
-                local _, contentPos = contenttable[self.Index]:GetPos()
+                    table.insert(contenttable, txtpanel)
 
-                print(contentPos)
+                    if ismaterial(v.image) then
+                        imagepanel = WikiImagePanel(textpanelY, wikiPageW - (wikiPageW - 10), v.image, v.imagecontents, wikiPageFrame)
+                    end
 
-                wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
-            end
+                    local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
 
-            if IsValid(imagepanel) then
-                local imagepanelW, imagepanelH = imagepanel:GetSize()
-                local imagepanelY = select(2, imagepanel:GetPos())
+                    function contentbutton:DoClick()
+                        local _, contentPos = contenttable[self.Index]:GetPos()
 
-                local imagepanelfinalcoord = imagepanelH + imagepanelY
+                        print(contentPos)
 
-                local newsizeW, newsizeH = txtpanel:GetSize()
-                local newposX, newposY = txtpanel:GetPos()
+                        wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
+                    end
 
-                if infopanelcoord => newposY then
-                    txtpanel:SetSize(newsizeW - imagepanelW - 10, newsizeH)
-                    wrappedlines = WrapText(v.contents, "Default", newsizeW - imagepanelW - 10)
+                    if IsValid(imagepanel) then
+                        local imagepanelW, imagepanelH = imagepanel:GetSize()
+                        local imagepanelY = select(2, imagepanel:GetPos())
+
+                        local imagepanelfinalcoord = imagepanelH + imagepanelY
+
+                        local newsizeW, newsizeH = txtpanel:GetSize()
+                        local newposX, newposY = txtpanel:GetPos()
+
+                        if infopanelcoord => newposY then
+                            txtpanel:SetSize(newsizeW - imagepanelW - 10, newsizeH)
+                            wrappedlines = WrapText(v.contents, "Default", newsizeW - imagepanelW - 10)
+                        end
+                    end
+
+                    local txtpanelH = select(2, txtpanel:GetSize())
+
+                    textpanelY = textpanelY + txtpanelH + 50
                 end
             end
-
-            local txtpanelH = select(2, txtpanel:GetSize())
-
-            textpanelY = textpanelY + txtpanelH + 50
         end
     end
-
-	function Glockbutton:DoClick()
-        contenttable = {}
-
-        local buttonindex = GetChildIndex(catpanel, historybutton)
-        local scrollpos = wikiFrameScrollBar:GetScroll()
-
-        if IsValid(historybutton) then
-            local historyarray = {tab = activetab, category = catpanel, index = buttonindex, buttonpanel = button, scrolllevel = scrollpos}
-
-            table.insert(historytable, historyarray)
-        end
-
-        activetab = sheet:GetActiveTab()
-        catpanel = activetab:GetPanel()
-        historybutton = self
-
-        wikiPageFrame:PerformLayout()
-
-        wikiFrameScrollBar:SetScroll(1)
-
-	    print("Glock was clicked.")
-
-	    local infopanel = WikiInfoPanel(wikiPageFrame, chicagoRP.glock17[1], wikiPageW - 50, wikiPageH - 100, 400, 1200)
-        local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
-
-        local sanitizedtbl = chicagoRP_Wiki.glock17[1] = nil
-        local contentindex = 0
-
-        local textpanelX = wikiPageH - 200
-
-        local mainpanelW, mainpanelH = WikiInfoPanel:GetSize()
-        local mainpanelX, mainpanelY = WikiInfoPanel:GetPos()
-
-        local infoPanelfinalcoord = mainpanelH + mainpanelY
-
-        for _, v in ipairs(sanitizedtbl) do
-            PrintTable(v)
-            local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, textpanelX, 100, mainpanelW, infoPanelfinalcoord)
-            contentindex = contentindex + 1
-            table.insert(contenttable, txtpanel)
-
-            local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
-
-            function contentbutton:DoClick()
-                local _, contentPos = contenttable[self.Index]:GetPos()
-
-                print(contentPos)
-
-                wikiFrameScrollBar:AnimateTo(contentPos, 0.5, 0, -1)
-            end
-
-            local _, txtpanelH = txtpanelH:GetSize()
-
-            textpanelX = textpanelX + txtpanelH + 50
-        end
-	end
 
     -- function weaponsCategoryList:Paint(w, h)
     --     return nil
@@ -814,10 +768,10 @@ end)
 print("chicagoRP Wiki GUI loaded!")
 
 -- to-do:
--- add loop to create buttons, stop doing them manually
 -- history back/forwards button (create button, stop history from being cleared when going back/forwards)
 -- bulleted lists
--- clickable links (how do we designate text as clickable???) (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
+-- clickable links (how do we designate text as clickable and replace that text with spaces???)
+-- clickable links cont. (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
 
 
 
