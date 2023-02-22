@@ -445,10 +445,10 @@ local function HistoryForwardButton(x, y, w, h, parent, tbl)
     end
 
     function forwardButton:DoClick()
-        local button = historyarray[historytblposition].category:GetChild(index + 1)
+        local button = tbl[historytblposition].category:GetChild(index + 1)
 
-        OpenSheet:SetActiveTab(historyarray[historytblposition].tab)
-        OpenWikiFrame:SetScroll(historyarray[historytblposition].scrolllevel)
+        OpenSheet:SetActiveTab(tbl[historytblposition].tab)
+        OpenWikiFrame:SetScroll(tbl[historytblposition].scrolllevel)
         button:DoClick()
         
         historytblposition = historytblposition + 1
@@ -473,10 +473,10 @@ local function HistoryBackButton(x, y, w, h, parent, tbl)
     end
 
     function backButton:DoClick()
-        local button = historyarray[historytblposition].category:GetChild(index + 1)
+        local button = tbl[historytblposition].category:GetChild(index + 1)
 
-        OpenSheet:SetActiveTab(historyarray[historytblposition].tab)
-        OpenWikiFrame:SetScroll(historyarray[historytblposition].scrolllevel)
+        OpenSheet:SetActiveTab(tbl[historytblposition].tab)
+        OpenWikiFrame:SetScroll(tbl[historytblposition].scrolllevel)
         button:DoClick()
         
         historytblposition = historytblposition - 1
@@ -616,6 +616,9 @@ net.Receive("chicagoRP_wikiGUI", function()
     local activetab = nil
     local catpanel = nil
     local historybutton = nil
+
+    local fHistoryButton = HistoryForwardButton(20, 10, 20, 20, motherFrame, historytable)
+    local bHistoryButton = HistoryBackButton(20, 30, 20, 20, motherFrame, historytable)
 
     local sheet = vgui.Create("DPropertySheet", frame)
     sheet:Dock(FILL)
@@ -768,10 +771,9 @@ end)
 print("chicagoRP Wiki GUI loaded!")
 
 -- to-do:
--- history back/forwards button (create button, stop history from being cleared when going back/forwards)
--- bulleted lists
--- clickable links (how do we designate text as clickable and replace that text with spaces???)
+-- clickable links (how do we designate text as clickable and replace that text with spaces??? function done via [[func]]?)
 -- clickable links cont. (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
+-- stop history from being cleared when going back/forwards (create two separate functions)
 
 
 

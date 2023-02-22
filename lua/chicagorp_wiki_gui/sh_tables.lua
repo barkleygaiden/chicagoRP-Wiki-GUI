@@ -61,6 +61,9 @@ chicagoRP_Wiki.glock17 = {
     }, {
         contents = "Alright Instagram it's shoutout time. To BigBlackNiggaBallsHD, GangWeedMLG, Dobe... FUCK... DobeJohnson, and HackDudes69. Those are the people that have been going after Lawrence Albert Connor with me. Thanks alot brothas, keep up the good work. Keep going after that put-up faggot Lawrence Albert Connor The Reptile Defective and try to get people to subscribe and follow me, if you can. Thank You.",
         sectionname = "NIGGA BALLS HD"
+    }, {
+        contents = "· Jew\n· BALLSSSSS\n· I SHOOT FELLAS\n· I SHOOT FELLAS\n· I SHOOT FELLAS",
+        sectionname = "Bulleted List Test"
     }
 }
 
