@@ -1,4 +1,5 @@
 chicagoRP_Wiki = chicagoRP_Wiki or {}
+chicagoRP_Wiki.index = {}
 
 chicagoRP_Wiki.maincategories = {
     {
@@ -39,6 +40,9 @@ chicagoRP_Wiki.akm = {
     }, {
         contents = "WHY YOU WANT RAIL FOR KALASHNIKOV? IS NOT GOOD ENOUGH AS PROCUREDAND FROM IZHEVSK MECHANICAL WORKS? YOU THINK NEEDS IMPROVEMENT? THEN MAYBE YOU FIND JOB WITH ARMY OF RUSSIA! YOU HAVE DRINKS WITH MIKHAIL KALASHNIKOV, TRADE STORY OF MANY WEAPONS DESIGNED DETAILS OF SCHOOL FOR ENGINEERING!\nOR MAYBE YOU NOT DO THIS. PROBABLY IS BECAUSE YOU NEVER DESIGN WEAPON IN WHOLE LIFE. YOU LOOK AT FINE RUSSIAN RIFLE, THINK IT NEED CRAZY SHIT STICK ON ALL SIDES OF WEAPON. YOU HAVE DISEASE OF AMERICAN CAPITALIST, CHANGE THING THAT IS FINE FOR NO REASON EXCEPT TO LOOK DIFFERENT FROM COMRADE. YOU PUT CHEAP FLASHLIGHT OF CHINESE SLAVE FACTORY ON ONE SIDE, YOU PUT BAD SCOPE OF AMERICAN MIDDLE WEST ON OTHER SIDE, YOU PUT FRONT PISTOL GRIP ON BOTTOM SO YOU ARE LIKE AMERICAN MOVIE GUY JOHN RAMBO. MAYBE YOU PUT SEX DILDO ON TOP TO FUCK YOURSELF IN ASSHOLE FOR MAKING SHAMEFUL TRAVESTY OF RIFLE OF MIKHAIL KALASHNIKOV, NO? \nRIFLE IS FINE. YOU FUCK IT, IT ONLY GET HEAVY AND YOU STILL NO HIT LARGEST SIDE OF BARN. GO TO FIRING RANGE, PRACTICE WITH MANY MAGAZINE OF CARTRIDGE. THEN YOU NOT NEED DUMB SHIT PUT ON SIDE OF RIFLE.",
         sectionname = "AKM BEST GUN EVER"
+    }, {
+        contents = "Hahahahahahahaha How The Fuck Is Dying Real Hahahaha Nigga Just Headshot Everyone With A [[ClickableLink(Glock)]] Like Nigga Shoot Everyone In Their Fucking Faces Haha",
+        sectionname = "like glock doe?>>>"
     }
 }
 
@@ -66,5 +70,12 @@ chicagoRP_Wiki.glock17 = {
         sectionname = "Bulleted List Test"
     }
 }
+
+for k, v in ipairs(chicagoRP_Wiki.maincategories) do
+    for k2, v2 in ipairs(chicagoRP_Wiki[v.name]) do
+        chicagoRP_Wiki.index[v2.name].parentindex = k
+        chicagoRP_Wiki.index[v2.name].childindex = k2
+    end
+end
 
 print("chicagoRP Wiki GUI tables loaded!")

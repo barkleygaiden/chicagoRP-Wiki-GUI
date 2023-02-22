@@ -1,14 +1,18 @@
 local HideHUD = false
 local OpenMotherFrame = nil
+local OpenWikiFrame = nil
 local OpenSheet = nil
+local OpenCategoryPanel = nil
 local Dynamic = 0
 local enabled = GetConVar("cl_chicagoRP_wikiGUI_enable"):GetBool()
+local ply = LocalPlayer()
 local reddebug = Color(200, 10, 10, 150)
-local whitecolor = Color(255, 255, 255, 255)
-local blackcolor = Color(0, 0, 0, 255)
+local bluecolor = Color(20, 20, 200, 200)
+local purplecolor = Color(160, 32, 240, 200)
 local blurMat = Material("pp/blurscreen")
 local contenttable = {}
 local historytable = {}
+local sheettable = {}
 
 local historytblposition = 1
 
@@ -16,7 +20,7 @@ list.Set("DesktopWindows", "chicagoRP Wiki", {
     title = "Wiki",
     icon = "icon64/chicagorp_settings.png",
     init = function(icon, window)
-        LocalPlayer():ConCommand("chicagoRP_wikiGUI")
+        ply:ConCommand("chicagoRP_wikiGUI")
     end
 })
 
@@ -56,16 +60,6 @@ local function PrettifyString(str)
     local upperstr = string.gsub(cachestr, "^%l", string.upper)
 
     return upperstr
-end
-
-local function GetChildIndex(parent, panel)
-    if !IsValid(parent) or !IsValid(panel) then return end
-
-    local children = parent:GetChildren()
-
-    for i, child in ipairs(children) do
-        if child == panel then return i end
-    end
 end
 
 local function GetTextHeight(text, font)
@@ -145,7 +139,45 @@ local function SmoothScrollBar(vbar) -- why
     end
 end
 
-local function WrapText(text, font, maxwidth)
+local function ClickableLink(text, panel)
+    local emptystr = string.Replace(text, "[%w_]", " ")
+
+    if IsValid(panel) and IsValid(OpenSheet) and IsValid(OpenCategoryPanel) then
+        local contentButton = panel:Add("DButton")
+        contentButton:SetSize(w, h)
+        contentButton:SetPos(x, y)
+        contentButton:SetText(text)
+        contentButton:SetCursor("hand")
+
+        contentButton:SizeToContents()
+
+        function contentButton:Paint(w, h)
+            if self:IsHovered() then
+                draw.DrawText(text, "DefaultUnderline", 0, 0, bluecolor, TEXT_ALIGN_LEFT)
+            else
+                draw.DrawText(text, "DefaultUnderline", 0, 0, purplecolor, TEXT_ALIGN_LEFT)
+            end
+
+            return nil
+        end
+
+        function contentButton:DoClick()
+            local lowerstr = string.lower(text)
+
+            OpenSheet:SetActiveTab(sheettable[chicagoRP_Wiki.index[lowerstr].parentindex])
+
+            local catpanel = OpenCategoryPanel:GetChild(0)
+
+            local selectedbutton = catpanel:GetChild(chicagoRP_Wiki.index[lowerstr].childindex)
+
+            selectedbutton:DoClick()
+        end
+    end
+
+    return emptystr
+end
+
+local function WrapText(text, font, maxwidth, panel, range, rangedwidth)
     local words = string.Explode(" ", text) -- Split the text into words
     local lines = {} -- Table to store lines of text
 
@@ -155,13 +187,31 @@ local function WrapText(text, font, maxwidth)
     surface.SetFont(font)
 
     for _, word in ipairs(words) do -- Loop through each word
-        local width = surface.GetTextSize(line .. word .. " ") -- Calculate the size of the text if the current word is added to the current line
+        local width = select(1, surface.GetTextSize(line .. word .. " ")) -- Calculate the size of the text if the current word is added to the current line
+        local height = select(2, surface.GetTextSize(line .. word .. " "))
+        local x_coord = height
 
-        if width > maxwidth then -- If the width of the text exceeds maxwidth, add the current line to the table of lines and start a new line with the current word
-            table.insert(lines, line)
-            line = word .. " "
-        else -- Otherwise, add the current word to the current line
-            line = line .. word .. " "
+        if !isempty(string.match(word, "ClickableLink")) then
+            word = ClickableLink(word, panel)
+            width = surface.GetTextSize(line .. word .. " ")
+        end
+
+        if isnumber(range) then
+            if width > maxwidth or (range >= x_coord and width > (maxwidth - rangedwidth)) then -- If the width of the text exceeds maxwidth, add the current line to the table of lines and start a new line with the current word
+                table.insert(lines, line)
+                x_coord = x_coord + height
+                line = word .. " "
+            else -- Otherwise, add the current word to the current line
+                line = line .. word .. " "
+            end
+        else
+            if width > maxwidth then -- If the width of the text exceeds maxwidth, add the current line to the table of lines and start a new line with the current word
+                table.insert(lines, line)
+                x_coord = x_coord + height
+                line = word .. " "
+            else -- Otherwise, add the current word to the current line
+                line = line .. word .. " "
+            end
         end
     end
 
@@ -187,7 +237,7 @@ local function ContentButton(parent, index, text, w, h)
     contentindex.Index = index
 
     function contentButton:Paint(w, h)
-        draw.DrawText(index .. ": " .. text, "chicagoRP_NPCShop", 0, 0, Color(20, 200, 20, 255), TEXT_ALIGN_LEFT)
+        draw.DrawText(index .. ": " .. text, "chicagoRP_NPCShop", 0, 0, color_black, TEXT_ALIGN_LEFT)
 
         return nil
     end
@@ -222,7 +272,7 @@ local function ContentsPanel(parent, x, y, w, h)
     return contentsScrPanel
 end
 
-local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopanelW, infopanelcoord)
+local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopanel)
     local wikiTxtPanel = vgui.Create("DLabel", parent)
     wikiTxtPanel:SetPos(x, y)
     wikiTxtPanel:SetSize(w, h)
@@ -234,13 +284,13 @@ local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopane
     wikiTxtPanel:SetWrap(true)
     wikiTxtPanel:SetAutoStretchVertical(true)
 
-    local wrappedlines = WrapText(contents, "Default", w)
+    local wrappedlines = WrapText(contents, "Default", w, wikiTxtPanel)
     local textHeight = GetTextHeight(" ", "Default")
 
     function wikiTxtPanel:Paint(w, h)
-        draw.DrawText(sectionname, "Default", 0, 0, blackcolor, TEXT_ALIGN_LEFT)
-        draw.RoundedBox(2, 0, 10, 100, 4, blackColor)
-        -- draw.DrawText(contents, "Default", 20, 0, blackcolor, TEXT_ALIGN_LEFT)
+        draw.DrawText(sectionname, "Default", 0, 0, color_black, TEXT_ALIGN_LEFT)
+        draw.RoundedBox(2, 0, 10, 100, 4, color_black)
+        -- draw.DrawText(contents, "Default", 20, 0, color_black, TEXT_ALIGN_LEFT)
 
         for i, line in ipairs(wrappedlines) do
             draw.DrawText(line, "Default", x, y + (i - 1) * textHeight, color_black, TEXT_ALIGN_LEFT)
@@ -254,9 +304,14 @@ local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopane
     local newsizeW, newsizeH = wikiTxtPanel:GetSize()
     local newposX, newposY = wikiTxtPanel:GetPos()
 
+    local infopanelW, infopanelH = infopanel:GetSize()
+    local infopanelY = select(2, infopanel:GetPos())
+
+    local infopanelcoord = infopanelH + infopanelY
+
     if infopanelcoord => newposY then
         wikiTxtPanel:SetSize(newsizeW - infopanelW - 10, newsizeH)
-        wrappedlines = WrapText(contents, "Default", newsizeW - infopanelW - 10)
+        wrappedlines = WrapText(contents, "Default", newsizeW - infopanelW - 10, wikiTxtPanel, infopanelH, infopanelW)
     end
 
     return wikiTxtPanel
@@ -291,7 +346,7 @@ local function InfoTextPanel(parent, text, color, w, h)
     if colortrue then color.a = 50 end
 
     function itemScrPanel:Paint(w, h)
-        draw.DrawText(text, "chicagoRP_NPCShop", 0, 0, whitecolor, TEXT_ALIGN_LEFT)
+        draw.DrawText(text, "chicagoRP_NPCShop", 0, 0, color_white, TEXT_ALIGN_LEFT)
 
         if colortrue then
             surface.SetDrawColor(color)
@@ -345,7 +400,7 @@ local function WikiInfoPanel(parent, infotable, x, y, w, h)
     local printname = infotable.printname
 
     function itemButton:Paint(w, h)
-        draw.DrawText(printname, "chicagoRP_NPCShop", (w / 2) - 10, 10, whitecolor, TEXT_ALIGN_LEFT)
+        draw.DrawText(printname, "chicagoRP_NPCShop", (w / 2) - 10, 10, color_white, TEXT_ALIGN_LEFT)
         draw.RoundedBox(4, 0, 0, w, h, graycolor)
 
         return true
@@ -362,13 +417,13 @@ local function WikiInfoPanel(parent, infotable, x, y, w, h)
     for _, v in ipairs(infotable) do
         if isempty(v) then continue end
 
-        InfoTextPanel(parent, v, whitecolor, (w / 2) - 4, 25)
+        InfoTextPanel(parent, v, color_white, (w / 2) - 4, 25)
     end
 
     return itemButton
 end
 
-local function WikiImagePanel(x, y, img, content, parent)
+local function WikiImagePanel(x, y, img, content, parent, index)
     local image = Material(img, "smooth mips")
 
     if !ismaterial(image) then return end
@@ -413,7 +468,7 @@ local function WikiImagePanel(x, y, img, content, parent)
     imageLabel:SetWrap(true)
     imageLabel:SetAutoStretchVertical(true)
 
-    local wrappedlines = WrapText(content, "Default", imageW)
+    local wrappedlines = WrapText(content, "Default", imageW, imageLabel)
     local textHeight = GetTextHeight(content, "Default")
 
     function imageLabel:Paint(w, h)
@@ -449,7 +504,7 @@ local function HistoryForwardButton(x, y, w, h, parent, tbl)
 
         OpenSheet:SetActiveTab(tbl[historytblposition].tab)
         OpenWikiFrame:SetScroll(tbl[historytblposition].scrolllevel)
-        button:DoClick()
+        button:DoClick(true)
         
         historytblposition = historytblposition + 1
     end
@@ -477,7 +532,7 @@ local function HistoryBackButton(x, y, w, h, parent, tbl)
 
         OpenSheet:SetActiveTab(tbl[historytblposition].tab)
         OpenWikiFrame:SetScroll(tbl[historytblposition].scrolllevel)
-        button:DoClick()
+        button:DoClick(true)
         
         historytblposition = historytblposition - 1
     end
@@ -564,7 +619,6 @@ hook.Add("HUDShouldDraw", "chicagoRP_wikiGUI_HideHUD", function()
 end)
 
 net.Receive("chicagoRP_wikiGUI", function()
-    local ply = LocalPlayer()
     if IsValid(OpenMotherFrame) then OpenMotherFrame:Close() return end
     if !IsValid(ply) then return end
     if !enabled then return end
@@ -610,6 +664,7 @@ net.Receive("chicagoRP_wikiGUI", function()
 
     contenttable = {}
     historytable = {}
+    sheettable = {}
 
     historytblposition = 1
 
@@ -654,18 +709,20 @@ net.Receive("chicagoRP_wikiGUI", function()
         categoryList:Dock(TOP)
         categoryList:SetSize(920, 500)
 
-        sheet:AddSheet(v.printname, categoryList, "icon16/cross.png")
+        local categorySheet = sheet:AddSheet(v.printname, categoryList, "icon16/cross.png")
+
+        table.insert(sheettable, categorySheet)
 
         local categoryListCollapsor = categoryList:Add("Weapons (remove this with paint)")
         -- sheet:AddSheet("Items", panel2, "icon16/tick.png")
 
-        for _, v in ipairs(chicagoRP_Wiki.[v.name]) do
+        for k, v in ipairs(chicagoRP_Wiki.[v.name]) do
             local itembutton = categoryListCollapsor:Add(v.printname)
 
-            function itembutton:DoClick()
+            function itembutton:DoClick(bool)
                 contenttable = {}
 
-                local buttonindex = GetChildIndex(catpanel, historybutton)
+                local buttonindex = k
                 local scrollpos = wikiFrameScrollBar:GetScroll()
 
                 if IsValid(historybutton) then
@@ -682,7 +739,7 @@ net.Receive("chicagoRP_wikiGUI", function()
 
                 local tblahead = tblcount + historytblposition -- 10, -3
 
-                if tblcount > 0 and tblahead != tblcount then
+                if tblcount > 0 and tblahead != tblcount and bool == nil then
                     for i = tblahead, tblcount do
                         historytbl[i] = nil
                     end
@@ -712,13 +769,13 @@ net.Receive("chicagoRP_wikiGUI", function()
                 for _, v in ipairs(sanitizedtbl) do
                     PrintTable(v)
                     local imagepanel = nil
-                    local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, wikiPageW - 100, 100, 100, textpanelY, mainpanelW, infoPanelfinalcoord)
+                    local txtpanel = WikiTextPanel(wikiPageFrame, v.sectionname, v.contents, wikiPageW - 100, 100, 100, textpanelY, infopanel)
                     contentindex = contentindex + 1
 
                     table.insert(contenttable, txtpanel)
 
                     if ismaterial(v.image) then
-                        imagepanel = WikiImagePanel(textpanelY, wikiPageW - (wikiPageW - 10), v.image, v.imagecontents, wikiPageFrame)
+                        imagepanel = WikiImagePanel(textpanelY, wikiPageW - (wikiPageW - 10), v.image, v.imagecontents, wikiPageFrame, k)
                     end
 
                     local contentbutton = ContentButton(contentpanel, contentindex, v.sectionname, 40, 20)
@@ -735,14 +792,14 @@ net.Receive("chicagoRP_wikiGUI", function()
                         local imagepanelW, imagepanelH = imagepanel:GetSize()
                         local imagepanelY = select(2, imagepanel:GetPos())
 
+                        local newsizeW, newsizeH = txtpanel:GetSize()
+                        local newposY = select(2, txtpanel:GetPos())
+
                         local imagepanelfinalcoord = imagepanelH + imagepanelY
 
-                        local newsizeW, newsizeH = txtpanel:GetSize()
-                        local newposX, newposY = txtpanel:GetPos()
-
-                        if infopanelcoord => newposY then
+                        if imagepanelfinalcoord => newposY then
                             txtpanel:SetSize(newsizeW - imagepanelW - 10, newsizeH)
-                            wrappedlines = WrapText(v.contents, "Default", newsizeW - imagepanelW - 10)
+                            wrappedlines = WrapText(v.contents, "Default", newsizeW - imagepanelW - 10, imagepanel, imagepanelH, imagepanelW)
                         end
                     end
 
@@ -766,16 +823,7 @@ net.Receive("chicagoRP_wikiGUI", function()
     OpenMotherFrame = motherFrame
     OpenSheet = sheet
     OpenWikiFrame = wikiPageFrame
+    OpenCategoryPanel = categoryScrollPanel
 end)
 
 print("chicagoRP Wiki GUI loaded!")
-
--- to-do:
--- clickable links (how do we designate text as clickable and replace that text with spaces??? function done via [[func]]?)
--- clickable links cont. (create invisible DButton parented to the DLabel, lay it over the word that needs to be clickable)
--- stop history from being cleared when going back/forwards (create two separate functions)
-
-
-
-
-
