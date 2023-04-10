@@ -309,7 +309,7 @@ local function WikiTextPanel(parent, sectionname, contents, w, h, x, y, infopane
 
     local infopanelcoord = infopanelH + infopanelY
 
-    if infopanelcoord => newposY then
+    if infopanelcoord >= newposY then
         wikiTxtPanel:SetSize(newsizeW - infopanelW - 10, newsizeH)
         wrappedlines = WrapText(contents, "Default", newsizeW - infopanelW - 10, wikiTxtPanel, infopanelH, infopanelW)
     end
@@ -492,7 +492,7 @@ local function HistoryForwardButton(x, y, w, h, parent, tbl)
     forwardButton:SetSize(w, h)
 
     function forwardButton:Paint(w, h)
-        if #tbl <= 1 then return nil
+        if #tbl <= 1 then return nil end
 
         draw.DrawText("Back", "chicagoRP_NPCShop", 0, 0, Color(20, 200, 20, 255), TEXT_ALIGN_LEFT)
 
@@ -520,7 +520,7 @@ local function HistoryBackButton(x, y, w, h, parent, tbl)
     backButton:SetSize(w, h)
 
     function backButton:Paint(w, h)
-        if #tbl <= 1 then return nil
+        if #tbl <= 1 then return nil end
 
         draw.DrawText("Back", "chicagoRP_NPCShop", 0, 0, Color(20, 200, 20, 255), TEXT_ALIGN_LEFT)
 
@@ -716,7 +716,7 @@ net.Receive("chicagoRP_wikiGUI", function()
         local categoryListCollapsor = categoryList:Add("Weapons (remove this with paint)")
         -- sheet:AddSheet("Items", panel2, "icon16/tick.png")
 
-        for k, v in ipairs(chicagoRP_Wiki.[v.name]) do
+        for k, v in ipairs(chicagoRP_Wiki[v.name]) do
             local itembutton = categoryListCollapsor:Add(v.printname)
 
             function itembutton:DoClick(bool)
@@ -756,7 +756,7 @@ net.Receive("chicagoRP_wikiGUI", function()
                 local infopanel = WikiInfoPanel(wikiPageFrame, chicagoRP.akm[1], wikiPageW - 50, wikiPageH - 100, 400, 1200)
                 local contentpanel = ContentsPanel(parent, 100, wikiPageH - 150, 200, 300)
 
-                local sanitizedtbl = chicagoRP_Wiki.akm[1] = nil
+                local sanitizedtbl = chicagoRP_Wiki.akm
                 local contentindex = 0
 
                 local textpanelY = wikiPageH - 200
@@ -797,7 +797,7 @@ net.Receive("chicagoRP_wikiGUI", function()
 
                         local imagepanelfinalcoord = imagepanelH + imagepanelY
 
-                        if imagepanelfinalcoord => newposY then
+                        if imagepanelfinalcoord >= newposY then
                             txtpanel:SetSize(newsizeW - imagepanelW - 10, newsizeH)
                             wrappedlines = WrapText(v.contents, "Default", newsizeW - imagepanelW - 10, imagepanel, imagepanelH, imagepanelW)
                         end

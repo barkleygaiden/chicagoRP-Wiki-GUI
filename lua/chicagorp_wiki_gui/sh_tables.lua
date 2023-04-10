@@ -1,5 +1,5 @@
 chicagoRP_Wiki = chicagoRP_Wiki or {}
-chicagoRP_Wiki.index = {}
+chicagoRP_Wikiindex = {}
 
 chicagoRP_Wiki.maincategories = {
     {
@@ -71,11 +71,11 @@ chicagoRP_Wiki.glock17 = {
     }
 }
 
-for k, v in ipairs(chicagoRP_Wiki.maincategories) do
-    for k2, v2 in ipairs(chicagoRP_Wiki[v.name]) do
-        chicagoRP_Wiki.index[v2.name].parentindex = k
-        chicagoRP_Wiki.index[v2.name].childindex = k2
-    end
-end
+-- for k, v in ipairs(chicagoRP_Wiki.maincategories) do
+--     for k2, v2 in ipairs(chicagoRP_Wiki[v.name]) do
+--         chicagoRP_Wikiindex[v2.name].parentindex = k
+--         chicagoRP_Wikiindex[v2.name].childindex = k2
+--     end
+-- end
 
 print("chicagoRP Wiki GUI tables loaded!")
