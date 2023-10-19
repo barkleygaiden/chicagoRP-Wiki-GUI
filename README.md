@@ -1,8 +1,10 @@
+**DEPRECATED**
+
 # chicagoRP-Wiki-GUI
 open-source wiki-like GUI for gmod
 
 # status
-nonfunctional
+untested but (mostly) finished, poorly coded though.
 
 # to-do
 [n/a] - base functionality                 
